@@ -1,19 +1,6 @@
 import json
 
 
-class A:
-    def __init__(self, x=None, a=None):
-        if x:
-            self.x = x
-            self.y = 0
-        else:
-            self.x = a.x
-            self.y = a.y
-
-    def __deepcopy__(self, memodict={}):
-        return A(a=self)
-
-
 class DictToObject(object):
     def __init__(self, d):
         for a, b in d.items():
@@ -23,18 +10,7 @@ class DictToObject(object):
                 setattr(self, a, DictToObject(b) if isinstance(b, dict) else b)
 
 
-class B:
-    def __init__(self, x=None, b=None):
-        if x:
-            self.a = A(x)
-            self.z = -1
-        else:
-            self.a = A(a=b.a)
-            self.z = b.z
-
-    def __deepcopy__(self, memodict={}):
-        return B(b=self)
-
+class Common:
     def save(self, file_name):
         with open(file_name, "w") as f:
             return json.dump(self, f, default=lambda o: getattr(o, '__dict__', str(o)), indent="\t")
@@ -42,12 +18,42 @@ class B:
     @classmethod
     def load(cls, file_name):
         with open(file_name, "r") as f:
-            d = DictToObject(json.load(f))
-            p = B(b=d)
-            return p
+            return cls(copy_from=DictToObject(json.load(f)))
 
 
+class A(Common):
+    def __init__(self, x=None, copy_from=None):
+        if x:
+            self.x = x
+            self.y = 0
+        else:
+            self.x = copy_from.x
+            self.y = copy_from.y
+
+    def __deepcopy__(self, memodict={}):
+        return A(copy_from=self)
+
+
+class B(Common):
+    def __init__(self, x=None, copy_from=None):
+        if x:
+            self.a = A(x)
+            self.z = -1
+        else:
+            self.a = A(copy_from=copy_from.a)
+            self.z = copy_from.z
+
+    def logic(self, c):
+        return (c + self.z) * (self.a.x - self.a.y)
+
+    def __deepcopy__(self, memodict={}):
+        return B(copy_from=self)
+
+
+
+# a = A(8)
+# a.save("a.json")
 # b = B(5)
-# b.save("banana.json")
-b = B.load("banana.json")
+# b.save("b.json")
+b = B.load("b.json")
 print(b.a.y)
